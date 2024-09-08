@@ -10,7 +10,7 @@ def get_edges(image, lower_threshold=50, upper_threshold=150):
 
 
 def get_traces(data):
-    data[data > 1] = 1  # Simplified this line
+    data[data > 1] = 1
     bmp = potrace.Bitmap(data)
     path = bmp.trace(2, potrace.POTRACE_TURNPOLICY_MINORITY, 1.0, 1, 0.5)
     return path
@@ -22,12 +22,10 @@ def get_bezier_curves(path):
         segments = curve.segments
         for segment in segments:
             if segment.is_corner:
-                # For corner segments, we'll use a straight line (linear Bézier)
                 start_point = segment.c
                 end_point = segment.end_point
                 bezier_curves.append((start_point, end_point))
             else:
-                # For curve segments, we'll extract the cubic Bézier control points
                 start_point = segment.c
                 control1 = segment.control1
                 control2 = segment.control2
@@ -36,20 +34,37 @@ def get_bezier_curves(path):
     return bezier_curves
 
 
+def get_latex(filename):
+    latex = []
+    path = get_traces(get_edges(filename))
+
+    for curve in path.curves:
+        segments = curve.segments
+        start = curve.start_point
+        for segment in segments:
+            x0, y0 = start.x, start.y
+            if segment.is_corner:
+                x1, y1 = segment.c.x, segment.c.y
+                x2, y2 = segment.end_point.x, segment.end_point.y
+                latex.append(f"((1-t){x0}+t{x1},(1-t){y0}+t{y1})")
+                latex.append(f"((1-t){x1}+t{x2},(1-t){y1}+t{y2})")
+            else:
+                x1, y1 = segment.c1
+                x2, y2 = segment.c2
+                x3, y3 = segment.end_point
+                latex.append(
+                    f"((1-t)((1-t)((1-t){x0}+t{x1})+t((1-t){x1}+t{x2}))+t((1-t)((1-t){x1}+t{x2})+t((1-t){x2}+t{x3})),(1-t)((1-t)((1-t){y0}+t{y1})+t((1-t){y1}+t{y2}))+t((1-t)((1-t){y1}+t{y2})+t((1-t){y2}+t{y3})))"
+                )
+            start = segment.end_point
+    return latex
+
+
 image_path = "amomo.jpg"
 edges = get_edges(image_path)
 traces = get_traces(edges)
+print(traces)
 bezier_curves = get_bezier_curves(traces)
+print(bezier_curves)
 
-for i, curve in enumerate(bezier_curves):
-    print(f"Curve {i + 1}:")
-    if len(curve) == 2:
-        print("  Linear Bézier (straight line)")
-        print(f"    Start point: {curve[0]}")
-        print(f"    End point: {curve[1]}")
-    else:
-        print("  Cubic Bézier curve:")
-        print(f"    Start point: {curve[0]}")
-        print(f"    Control point 1: {curve[1]}")
-        print(f"    Control point 2: {curve[2]}")
-        print(f"    End point: {curve[3]}")
+for i in get_latex("amomo.jpg"):
+    print(i)
